@@ -34,16 +34,15 @@ Adding ignore rules does not remove files already tracked in Git. This change do
 ```text
 Jenkins job reads django-notes-app/Jenkinsfile from SCM
   -> Kubernetes plugin uses cloud kind-kubernetes
-     -> inherits template kind-agent
-        -> merges an additional Python container into the agent Pod
-           -> jnlp container: checkout scm
-           -> python container: install requirements in workspace .venv
-           -> python container: sh ci/run.sh
-           -> controller archives ci-artifacts reports
-           -> temporary agent Pod/workspace cleaned up
+     -> label python-agent selects the reusable Python Pod template
+        -> jnlp container: checkout scm
+        -> python container: install requirements in workspace .venv
+        -> python container: sh ci/run.sh
+        -> controller archives ci-artifacts reports
+        -> temporary agent Pod/workspace cleaned up
 ```
 
-`inheritFrom 'kind-agent'` refers to the Pod template name. `cloud 'kind-kubernetes'` is the Cloud name. `yamlMergeStrategy merge()` preserves the parent's worker affinity, security context and jnlp container while adding Python. Both containers share the agent workspace; source checkout is done in jnlp because that image already has Git. Python is installed in its own image, not in the controller.
+`agent { label 'python-agent' }` selects the `python-agent` Pod template saved under the existing `kind-kubernetes` Cloud. Its Pod definition is documented in `../../jenkins-agents/python-agent-pod.yaml`. The original `kind-agent` template remains unchanged. Both containers share the agent workspace; source checkout is done in `jnlp` because that image already has Git. Python commands run in the separate `python` container, not in the controller.
 
 The Python container uses `sleep 99d` only to stay available for Pipeline exec commands. It does not keep the Pod for 99 days: normal agent lifecycle deletes the Pod after the build releases it.
 
@@ -88,7 +87,7 @@ Agent workspace deletion does not remove these archived reports. Controller stor
 - Shell syntax (`sh -n`) and Git whitespace (`git diff --check`) passed.
 - A fresh `python:3.11-slim` Docker container running UID/GID 1000 installed the dependencies and executed the same CI script on an isolated copy without .env or the local database.
 - Django system checks passed, SQLite migrations passed, and **2 API tests passed**.
-- No Git commit/push, Docker Hub publish, production deploy, controller restart or job configuration change was performed for this fix.
+- The Jenkins controller was restarted after adding the reusable `python-agent` template. Existing jobs and build history were preserved. No Docker Hub publish or production deploy was performed.
 
 A full Jenkins/Kubernetes run still needs the changed files committed and pushed so the SCM job can fetch them. The first Python image pull on a worker can take time.
 

@@ -1,28 +1,5 @@
 pipeline {
-    agent {
-        kubernetes {
-            cloud 'kind-kubernetes'
-            inheritFrom 'kind-agent'
-            yamlMergeStrategy merge()
-            yaml '''
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-    - name: python
-      image: python:3.11-slim
-      command: ["sleep"]
-      args: ["99d"]
-      resources:
-        requests:
-          cpu: 100m
-          memory: 256Mi
-        limits:
-          cpu: "1"
-          memory: 512Mi
-'''
-        }
-    }
+    agent { label 'python-agent' }
 
     options {
         timeout(time: 15, unit: 'MINUTES')
