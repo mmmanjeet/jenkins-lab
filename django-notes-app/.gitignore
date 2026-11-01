@@ -24,3 +24,12 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local/CI generated files
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+ci.sqlite3
+ci-artifacts/

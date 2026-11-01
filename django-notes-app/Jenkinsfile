@@ -1,29 +1,87 @@
+pipeline {
+    agent {
+        kubernetes {
+            cloud 'kind-kubernetes'
+            inheritFrom 'kind-agent'
+            yamlMergeStrategy merge()
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: python
+      image: python:3.11-slim
+      command: ["sleep"]
+      args: ["99d"]
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: "1"
+          memory: 512Mi
+'''
+        }
+    }
 
-pipeline{
-    agent { label 'practice-k8s'}
-    
-    stages{
-        stage("Code clone"){
-            steps{
-                sh "whoami"
-            clone("https://github.com/LondheShubham153/django-notes-app.git","main")
+    options {
+        timeout(time: 15, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+    }
+
+    environment {
+        PYTHONDONTWRITEBYTECODE = '1'
+        PIP_DISABLE_PIP_VERSION_CHECK = '1'
+        PIP_CACHE_DIR = '/tmp/pip-cache'
+    }
+
+    stages {
+        stage('Checkout our repository') {
+            steps {
+                container('jnlp') {
+                    checkout scm
+                    sh '''
+                        set -eu
+                        echo "Agent Pod: $HOSTNAME"
+                        echo "Kubernetes worker: $K8S_NODE_NAME"
+                        mkdir -p django-notes-app/ci-artifacts
+                        git rev-parse HEAD > django-notes-app/ci-artifacts/commit.txt
+                    '''
+                }
             }
         }
-        stage("Code Build"){
-            steps{
-            dockerbuild("notes-app","latest")
+
+        stage('Install Python dependencies') {
+            steps {
+                container('python') {
+                    dir('django-notes-app') {
+                        sh '''
+                            set -eu
+                            python --version
+                            python -m venv .venv
+                            .venv/bin/python -m pip install -r requirements.txt
+                        '''
+                    }
+                }
             }
         }
-        stage("Push to DockerHub"){
-            steps{
-                dockerpush("dockerHubCreds","notes-app","latest")
+
+        stage('Django checks and tests') {
+            steps {
+                container('python') {
+                    dir('django-notes-app') {
+                        sh 'sh ci/run.sh'
+                    }
+                }
             }
         }
-        stage("Deploy"){
-            steps{
-                deploy()
-            }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'django-notes-app/ci-artifacts/**',
+                allowEmptyArchive: true
         }
-        
     }
 }
