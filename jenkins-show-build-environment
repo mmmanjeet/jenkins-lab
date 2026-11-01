@@ -1,0 +1,21 @@
+pipeline {
+    agent { label 'kind-agent' }
+    options {
+        timeout(time: 10, unit: 'MINUTES')
+    }
+    stages {
+        stage('Show build environment') {
+            steps {
+                sh '''
+                    echo "Agent Pod: $HOSTNAME"
+                    echo "Kubernetes worker: $K8S_NODE_NAME"
+                    echo "Jenkins agent: $NODE_NAME"
+                    id
+                    java -version
+                    sleep 20
+                '''
+            }
+        }
+    }
+}
+
