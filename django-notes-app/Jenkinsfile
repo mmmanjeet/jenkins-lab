@@ -1,6 +1,6 @@
 
 pipeline{
-    agent { label 'dev-server'}
+    agent { label 'practice-k8s'}
     
     stages{
         stage("Code clone"){
