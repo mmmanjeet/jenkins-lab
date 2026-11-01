@@ -16,6 +16,16 @@ pipeline {
                 '''
             }
         }
+
+        stage('Check code') {
+            steps {
+                sh '''
+                    echo "GitHub se pipeline chali!"
+                    echo "Worker: $K8S_NODE_NAME"
+                    git log -1 --oneline
+                    ls -la '''
+                }
+        }
     }
 }
 
